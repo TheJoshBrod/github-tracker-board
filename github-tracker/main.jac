@@ -160,6 +160,45 @@ walker UpdateStats {
     }
 }
 
+def get_time_ago(dt_str: str) -> str {
+    if not dt_str {
+        return "N/A";
+    }
+    try {
+        dt = pd.to_datetime(dt_str);
+        now = datetime.now(timezone.utc);
+        if dt.tz is None {
+            dt = dt.tz_localize("UTC");
+        }
+
+        diff = now - dt;
+        seconds = diff.total_seconds();
+
+        if seconds < 60 {
+            return f"{int(seconds)} seconds ago";
+        }
+        minutes = seconds / 60;
+        if minutes < 60 {
+            return f"{int(minutes)} minutes ago";
+        }
+        hours = minutes / 60;
+        if hours < 24 {
+            return f"{int(hours)} hours ago";
+        }
+        days = hours / 24;
+        if days < 30 {
+            return f"{int(days)} days ago";
+        }
+        months = days / 30;
+        if months < 12 {
+            return f"{int(months)} months ago";
+        }
+        return f"{int(months / 12)} years ago";
+    } except Exception {
+        return "N/A";
+    }
+}
+
 def:pub load_data() {
     root spawn LoadData();
 }
@@ -175,7 +214,8 @@ def:pub get_users() -> list {
             {
                 "username": u.username,
                 "weekly_pushes": u.weekly_pushes,
-                "last_push": u.last_push,
+                "weekly_pushes": u.weekly_pushes,
+                "last_push": get_time_ago(u.last_push),
                 "avatar_url": u.avatar_url
             }
         );
@@ -203,7 +243,8 @@ def:pub get_projects() -> list {
                 "owner": p.owner,
                 "stars": p.stars,
                 "weekly_pushes": p.weekly_pushes,
-                "last_push": p.last_push,
+                "weekly_pushes": p.weekly_pushes,
+                "last_push": get_time_ago(p.last_push),
                 "repo_url": p.repo_url
             }
         );
@@ -249,69 +290,248 @@ cl {
         useEffect(lambda -> None { fetchData();setInterval(fetchData, 60000);}, []);
 
         return
-            <div style={{ display: "flex", flexDirection: "row", height: "100vh", backgroundColor: "#111827", overflow: "hidden" }}>
-                <div style={{ flex: 1, backgroundColor: "#1f2937", borderRight: "1px solid #374151", display: "flex", flexDirection: "column" }}>
-                    <h2 style={{ padding: "1.5rem", fontSize: "1.5rem", fontWeight: "700", color: "#e5e7eb", borderBottom: "1px solid #374151", margin: 0, textAlign: "center" }}>
+            <div
+                style={{
+                    display: "flex",
+                    flexDirection: "row",
+                    height: "100vh",
+                    backgroundColor: "#111827",
+                    overflow: "hidden"
+                }}
+            >
+                <div
+                    style={{
+                        flex: 1,
+                        backgroundColor: "#1f2937",
+                        borderRight: "1px solid #374151",
+                        display: "flex",
+                        flexDirection: "column"
+                    }}
+                >
+                    <h2
+                        style={{
+                            padding: "1.5rem",
+                            fontSize: "1.5rem",
+                            fontWeight: "700",
+                            color: "#e5e7eb",
+                            borderBottom: "1px solid #374151",
+                            margin: 0,
+                            textAlign: "center"
+                        }}
+                    >
                         Top Users
                     </h2>
-                    <div className="scroll-container" style={{ flex: 1, overflow: "hidden", position: "relative" }}>
-                         <div style={{ animation: "scrollUp 20s linear infinite", ":hover": { animationPlayState: "paused" } }}>
+                    <div
+                        className="scroll-container"
+                        style={{flex: 1, overflow: "hidden", position: "relative"}}
+                    >
+                        <div
+                            style={{
+                                animation: "scrollUp 20s linear infinite",
+                                ":hover": {animationPlayState: "paused"}
+                            }}
+                        >
                             {[
-                                <div key={u["username"]} style={{ display: "flex", alignItems: "center", padding: "1rem", borderBottom: "1px solid #374151", gap: "1rem" }}>
-                                    <img src={u["avatar_url"]} alt="" style={{ width: "3rem", height: "3rem", borderRadius: "50%" }} />
-                                    <div style={{ flex: 1 }}>
-                                        <div style={{ fontWeight: "600", fontSize: "1.1rem", color: "#e5e7eb" }}>{u["username"]}</div>
-                                        <div style={{ fontSize: "0.85rem", color: "#9ca3af" }}>Last push: {u["last_push"] if u["last_push"] else "N/A"}</div>
+                                <div
+                                    key={u["username"]}
+                                    style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        padding: "1rem",
+                                        borderBottom: "1px solid #374151",
+                                        gap: "1rem"
+                                    }}
+                                >
+                                    <img
+                                        src={u["avatar_url"]}
+                                        alt=""
+                                        style={{
+                                            width: "3rem",
+                                            height: "3rem",
+                                            borderRadius: "50%"
+                                        }}
+                                    />
+                                    <div style={{flex: 1}}>
+                                        <div
+                                            style={{
+                                                fontWeight: "600",
+                                                fontSize: "1.1rem",
+                                                color: "#e5e7eb"
+                                            }}
+                                        >
+                                            {u["username"]}
+                                        </div>
+                                        <div
+                                            style={{
+                                                fontSize: "0.85rem",
+                                                color: "#9ca3af"
+                                            }}
+                                        >
+                                            Last push: {u["last_push"]}
+                                        </div>
                                     </div>
-                                    <div style={{ textAlign: "right" }}>
-                                         <div style={{ fontSize: "1.25rem", fontWeight: "700", color: "#10b981" }}>📦 {u["weekly_pushes"]}</div>
+                                    <div style={{textAlign: "right"}}>
+                                        <div
+                                            style={{
+                                                fontSize: "1.25rem",
+                                                fontWeight: "700",
+                                                color: "#10b981"
+                                            }}
+                                        >
+                                            📦 {u["weekly_pushes"]}
+                                        </div>
                                     </div>
                                 </div> for u in users
                             ]}
-                         </div>
+                        </div>
                     </div>
                 </div>
-
-                <div style={{ width: "350px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "2rem", backgroundColor: "#111827", zIndex: 10 }}>
-                     <header style={{ textAlign: "center", marginBottom: "2rem" }}>
-                         <h1 style={{ fontSize: "2rem", fontWeight: "800", color: "#f9fafb", marginBottom: "0.5rem" }}>
-                             GitHub Tracker
-                         </h1>
-                         <p style={{ color: "#9ca3af", fontSize: "1rem" }}>
-                             Live activity tracking
-                         </p>
-                     </header>
-                     
-                     {<div style={{ color: "ef4444", textAlign: "center", padding: "1rem", backgroundColor: "rgba(239,68,68,0.1)", borderRadius: "0.5rem" }}>
+                <div
+                    style={{
+                        width: "350px",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: "2rem",
+                        backgroundColor: "#111827",
+                        zIndex: 10
+                    }}
+                >
+                    <header style={{textAlign: "center", marginBottom: "2rem"}}>
+                        <h1
+                            style={{
+                                fontSize: "2rem",
+                                fontWeight: "800",
+                                color: "#f9fafb",
+                                marginBottom: "0.5rem"
+                            }}
+                        >
+                            GitHub Tracker
+                        </h1>
+                        <p style={{color: "#9ca3af", fontSize: "1rem"}}>
+                            Live activity tracking
+                        </p>
+                    </header>
+                    {<div
+                        style={{
+                            color: "ef4444",
+                            textAlign: "center",
+                            padding: "1rem",
+                            backgroundColor: "rgba(239,68,68,0.1)",
+                            borderRadius: "0.5rem"
+                        }}
+                    >
                         {error}
-                     </div> if error else None}
-
-                     <div style={{ marginTop: "2rem", color: "#6b7280", fontSize: "0.85rem" }}>
-                         Updates every minute
-                     </div>
+                    </div>
+                    if error
+                    else None}
+                    <div
+                        style={{
+                            marginTop: "2rem",
+                            color: "#6b7280",
+                            fontSize: "0.85rem"
+                        }}
+                    >
+                        Updates every minute
+                    </div>
                 </div>
-
-                <div style={{ flex: 1, backgroundColor: "#1f2937", borderLeft: "1px solid #374151", display: "flex", flexDirection: "column" }}>
-                     <h2 style={{ padding: "1.5rem", fontSize: "1.5rem", fontWeight: "700", color: "#e5e7eb", borderBottom: "1px solid #374151", margin: 0, textAlign: "center" }}>
+                <div
+                    style={{
+                        flex: 1,
+                        backgroundColor: "#1f2937",
+                        borderLeft: "1px solid #374151",
+                        display: "flex",
+                        flexDirection: "column"
+                    }}
+                >
+                    <h2
+                        style={{
+                            padding: "1.5rem",
+                            fontSize: "1.5rem",
+                            fontWeight: "700",
+                            color: "#e5e7eb",
+                            borderBottom: "1px solid #374151",
+                            margin: 0,
+                            textAlign: "center"
+                        }}
+                    >
                         Top Projects
                     </h2>
-                    <div className="scroll-container" style={{ flex: 1, overflow: "hidden", position: "relative" }}>
-                         <div style={{ animation: "scrollUp 20s linear infinite", ":hover": { animationPlayState: "paused" } }}>
+                    <div
+                        className="scroll-container"
+                        style={{flex: 1, overflow: "hidden", position: "relative"}}
+                    >
+                        <div
+                            style={{
+                                animation: "scrollUp 20s linear infinite",
+                                ":hover": {animationPlayState: "paused"}
+                            }}
+                        >
                             {[
-                                <div key={p["repo_url"]} style={{ padding: "1rem", borderBottom: "1px solid #374151" }}>
-                                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem" }}>
-                                        <a href={"https://github.com/" + p["repo_url"]} target="_blank" style={{ fontWeight: "600", fontSize: "1.1rem", color: "#60a5fa", textDecoration: "none" }}>
+                                <div
+                                    key={p["repo_url"]}
+                                    style={{
+                                        padding: "1rem",
+                                        borderBottom: "1px solid #374151"
+                                    }}
+                                >
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            justifyContent: "space-between",
+                                            marginBottom: "0.5rem"
+                                        }}
+                                    >
+                                        <a
+                                            href={"https://github.com/" + p["repo_url"]}
+                                            target="_blank"
+                                            style={{
+                                                fontWeight: "600",
+                                                fontSize: "1.1rem",
+                                                color: "#60a5fa",
+                                                textDecoration: "none"
+                                            }}
+                                        >
                                             {p["owner"]}/{p["name"]}
                                         </a>
-                                        <span style={{ fontSize: "0.9rem", color: "#d1d5db" }}>⭐ {p["stars"]}</span>
+                                        <span
+                                            style={{
+                                                fontSize: "0.9rem",
+                                                color: "#d1d5db"
+                                            }}
+                                        >
+                                            ⭐ {p["stars"]}
+                                        </span>
                                     </div>
-                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                        <span style={{ fontSize: "0.85rem", color: "#9ca3af" }}>Last: {p["last_push"] if p["last_push"] else "N/A"}</span>
-                                        <div style={{ fontSize: "1.25rem", fontWeight: "700", color: "#10b981" }}>📦 {p["weekly_pushes"]}</div>
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            justifyContent: "space-between",
+                                            alignItems: "center"
+                                        }}
+                                    >
+                                        <span
+                                            style={{
+                                                fontSize: "0.85rem",
+                                                color: "#9ca3af"
+                                            }}
+                                        >
+                                            Last: {p["last_push"]}
+                                        </span>
+                                        <div
+                                            style={{
+                                                fontSize: "1.25rem",
+                                                fontWeight: "700",
+                                                color: "#10b981"
+                                            }}
+                                        >
+                                            📦 {p["weekly_pushes"]}
+                                        </div>
                                     </div>
                                 </div> for p in projects
                             ]}
-                         </div>
+                        </div>
                     </div>
                 </div>
             </div>;
