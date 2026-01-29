@@ -224,6 +224,7 @@ def:pub get_projects() -> list {
 # Frontend
 cl {
     import from react { useEffect, useState }
+    import "./global.css";
     import from .components.Button { Button }
 
     def:pub app() -> any {
@@ -245,255 +246,72 @@ cl {
             loading = False;
         }
 
-        useEffect(
-            lambda -> None { fetchData();
-            setInterval(fetchData, 60000);},
-            []
-        );
+        useEffect(lambda -> None { fetchData();setInterval(fetchData, 60000);}, []);
 
         return
-            <div
-                style={{
-                    fontFamily: "Inter, sans-serif",
-                    backgroundColor: "#f3f4f6",
-                    minHeight: "100vh",
-                    padding: "2rem"
-                }}
-            >
-                <header style={{textAlign: "center", marginBottom: "3rem"}}>
-                    <h1
-                        style={{
-                            fontSize: "2.5rem",
-                            fontWeight: "800",
-                            color: "#1f2937",
-                            marginBottom: "0.5rem"
-                        }}
-                    >
-                        GitHub Tracker
-                    </h1>
-                    <p style={{color: "#6b7280", fontSize: "1.1rem"}}>
-                        Live activity tracking for Users and Projects
-                    </p>
-                </header>
-                <div
-                    style={{
-                        display: "flex",
-                        justifyContent: "center",
-                        gap: "1rem",
-                        marginBottom: "2rem"
-                    }}
-                >
-                </div>
-                {<div
-                    style={{color: "red", textAlign: "center", marginBottom: "1rem"}}
-                >
-                    {error}
-                </div>
-                if error
-                else None}
-                <div
-                    style={{
-                        display: "grid",
-                        gridTemplateColumns: "1fr 1fr",
-                        gap: "2rem",
-                        maxWidth: "1200px",
-                        margin: "0 auto"
-                    }}
-                >
-                    <div
-                        style={{
-                            backgroundColor: "#ffffff",
-                            borderRadius: "1rem",
-                            padding: "1.5rem",
-                            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)"
-                        }}
-                    >
-                        <h2
-                            style={{
-                                fontSize: "1.5rem",
-                                fontWeight: "700",
-                                marginBottom: "1.5rem",
-                                borderBottom: "2px solid #e5e7eb",
-                                paddingBottom: "1rem",
-                                color: "#4b5563"
-                            }}
-                        >
-                            Top Users (Weekly Pushes)
-                        </h2>
-                        <div
-                            className="scroll-container"
-                            style={{
-                                height: "500px",
-                                overflow: "hidden",
-                                position: "relative"
-                            }}
-                        >
-                            <div
-                                style={{
-                                    animation: "scrollUp 20s linear infinite",
-                                    ":hover": {animationPlayState: "paused"}
-                                }}
-                            >
-                                {[
-                                    <div
-                                        key={u["username"]}
-                                        style={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            padding: "1rem",
-                                            borderBottom: "1px solid #f3f4f6",
-                                            gap: "1rem"
-                                        }}
-                                    >
-                                        <img
-                                            src={u["avatar_url"]}
-                                            alt=""
-                                            style={{
-                                                width: "3rem",
-                                                height: "3rem",
-                                                borderRadius: "50%"
-                                            }}
-                                        />
-                                        <div style={{flex: 1}}>
-                                            <div
-                                                style={{
-                                                    fontWeight: "600",
-                                                    fontSize: "1.1rem",
-                                                    color: "#111827"
-                                                }}
-                                            >
-                                                {u["username"]}
-                                            </div>
-                                            <div
-                                                style={{
-                                                    fontSize: "0.85rem",
-                                                    color: "#9ca3af"
-                                                }}
-                                            >
-                                                Last push: {u["last_push"]
-                                                if u["last_push"]
-                                                else "N/A"}
-                                            </div>
-                                        </div>
-                                        <div style={{textAlign: "right"}}>
-                                            <div
-                                                style={{
-                                                    fontSize: "1.25rem",
-                                                    fontWeight: "700",
-                                                    color: "#10b981"
-                                                }}
-                                            >
-                                                📦 {u["weekly_pushes"]}
-                                            </div>
-                                        </div>
-                                    </div> for u in users
-                                ]}
-                            </div>
-                        </div>
+            <div style={{ display: "flex", flexDirection: "row", height: "100vh", backgroundColor: "#111827", overflow: "hidden" }}>
+                <div style={{ flex: 1, backgroundColor: "#1f2937", borderRight: "1px solid #374151", display: "flex", flexDirection: "column" }}>
+                    <h2 style={{ padding: "1.5rem", fontSize: "1.5rem", fontWeight: "700", color: "#e5e7eb", borderBottom: "1px solid #374151", margin: 0, textAlign: "center" }}>
+                        Top Users
+                    </h2>
+                    <div className="scroll-container" style={{ flex: 1, overflow: "hidden", position: "relative" }}>
+                         <div style={{ animation: "scrollUp 20s linear infinite", ":hover": { animationPlayState: "paused" } }}>
+                            {[
+                                <div key={u["username"]} style={{ display: "flex", alignItems: "center", padding: "1rem", borderBottom: "1px solid #374151", gap: "1rem" }}>
+                                    <img src={u["avatar_url"]} alt="" style={{ width: "3rem", height: "3rem", borderRadius: "50%" }} />
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontWeight: "600", fontSize: "1.1rem", color: "#e5e7eb" }}>{u["username"]}</div>
+                                        <div style={{ fontSize: "0.85rem", color: "#9ca3af" }}>Last push: {u["last_push"] if u["last_push"] else "N/A"}</div>
+                                    </div>
+                                    <div style={{ textAlign: "right" }}>
+                                         <div style={{ fontSize: "1.25rem", fontWeight: "700", color: "#10b981" }}>📦 {u["weekly_pushes"]}</div>
+                                    </div>
+                                </div> for u in users
+                            ]}
+                         </div>
                     </div>
-                    <div
-                        style={{
-                            backgroundColor: "#ffffff",
-                            borderRadius: "1rem",
-                            padding: "1.5rem",
-                            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)"
-                        }}
-                    >
-                        <h2
-                            style={{
-                                fontSize: "1.5rem",
-                                fontWeight: "700",
-                                marginBottom: "1.5rem",
-                                borderBottom: "2px solid #e5e7eb",
-                                paddingBottom: "1rem",
-                                color: "#4b5563"
-                            }}
-                        >
-                            Top Projects (Weekly Pushes)
-                        </h2>
-                        <div
-                            className="scroll-container"
-                            style={{
-                                height: "500px",
-                                overflow: "hidden",
-                                position: "relative"
-                            }}
-                        >
-                            <div
-                                style={{
-                                    animation: "scrollUp 20s linear infinite",
-                                    ":hover": {animationPlayState: "paused"}
-                                }}
-                            >
-                                {[
-                                    <div
-                                        key={p["repo_url"]}
-                                        style={{
-                                            padding: "1rem",
-                                            borderBottom: "1px solid #f3f4f6"
-                                        }}
-                                    >
-                                        <div
-                                            style={{
-                                                display: "flex",
-                                                justifyContent: "space-between",
-                                                marginBottom: "0.5rem"
-                                            }}
-                                        >
-                                            <a
-                                                href={"https://github.com/" + p[
-                                                    "repo_url"
-                                                ]}
-                                                target="_blank"
-                                                style={{
-                                                    fontWeight: "600",
-                                                    fontSize: "1.1rem",
-                                                    color: "#2563eb",
-                                                    textDecoration: "none"
-                                                }}
-                                            >
-                                                {p["owner"]}/{p["name"]}
-                                            </a>
-                                            <span
-                                                style={{
-                                                    fontSize: "0.9rem",
-                                                    color: "#6b7280"
-                                                }}
-                                            >
-                                                ⭐ {p["stars"]}
-                                            </span>
-                                        </div>
-                                        <div
-                                            style={{
-                                                display: "flex",
-                                                justifyContent: "space-between",
-                                                alignItems: "center"
-                                            }}
-                                        >
-                                            <span
-                                                style={{
-                                                    fontSize: "0.85rem",
-                                                    color: "#9ca3af"
-                                                }}
-                                            >
-                                                Last: {p["last_push"]
-                                                if p["last_push"]
-                                                else "N/A"}
-                                            </span>
-                                            <div
-                                                style={{
-                                                    fontSize: "1.25rem",
-                                                    fontWeight: "700",
-                                                    color: "#10b981"
-                                                }}
-                                            >
-                                                📦 {p["weekly_pushes"]}
-                                            </div>
-                                        </div>
-                                    </div> for p in projects
-                                ]}
-                            </div>
-                        </div>
+                </div>
+
+                <div style={{ width: "350px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "2rem", backgroundColor: "#111827", zIndex: 10 }}>
+                     <header style={{ textAlign: "center", marginBottom: "2rem" }}>
+                         <h1 style={{ fontSize: "2rem", fontWeight: "800", color: "#f9fafb", marginBottom: "0.5rem" }}>
+                             GitHub Tracker
+                         </h1>
+                         <p style={{ color: "#9ca3af", fontSize: "1rem" }}>
+                             Live activity tracking
+                         </p>
+                     </header>
+                     
+                     {<div style={{ color: "ef4444", textAlign: "center", padding: "1rem", backgroundColor: "rgba(239,68,68,0.1)", borderRadius: "0.5rem" }}>
+                        {error}
+                     </div> if error else None}
+
+                     <div style={{ marginTop: "2rem", color: "#6b7280", fontSize: "0.85rem" }}>
+                         Updates every minute
+                     </div>
+                </div>
+
+                <div style={{ flex: 1, backgroundColor: "#1f2937", borderLeft: "1px solid #374151", display: "flex", flexDirection: "column" }}>
+                     <h2 style={{ padding: "1.5rem", fontSize: "1.5rem", fontWeight: "700", color: "#e5e7eb", borderBottom: "1px solid #374151", margin: 0, textAlign: "center" }}>
+                        Top Projects
+                    </h2>
+                    <div className="scroll-container" style={{ flex: 1, overflow: "hidden", position: "relative" }}>
+                         <div style={{ animation: "scrollUp 20s linear infinite", ":hover": { animationPlayState: "paused" } }}>
+                            {[
+                                <div key={p["repo_url"]} style={{ padding: "1rem", borderBottom: "1px solid #374151" }}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+                                        <a href={"https://github.com/" + p["repo_url"]} target="_blank" style={{ fontWeight: "600", fontSize: "1.1rem", color: "#60a5fa", textDecoration: "none" }}>
+                                            {p["owner"]}/{p["name"]}
+                                        </a>
+                                        <span style={{ fontSize: "0.9rem", color: "#d1d5db" }}>⭐ {p["stars"]}</span>
+                                    </div>
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                        <span style={{ fontSize: "0.85rem", color: "#9ca3af" }}>Last: {p["last_push"] if p["last_push"] else "N/A"}</span>
+                                        <div style={{ fontSize: "1.25rem", fontWeight: "700", color: "#10b981" }}>📦 {p["weekly_pushes"]}</div>
+                                    </div>
+                                </div> for p in projects
+                            ]}
+                         </div>
                     </div>
                 </div>
             </div>;
