@@ -1,0 +1,503 @@
+import from github { Github }
+import from datetime { datetime, timedelta, timezone }
+import from dotenv { load_dotenv }
+
+import os;
+import pandas as pd;
+
+# Data Nodes
+node Project {
+    has name: str,
+        owner: str,
+        repo_url: str,
+        stars: int = 0,
+        last_push: str = "",
+        weekly_pushes: int = 0;
+}
+
+node User {
+    has username: str,
+        weekly_pushes: int = 0,
+        last_push: str = "",
+        avatar_url: str = "";
+}
+
+# Walkers
+walker LoadData {
+    can load_users with `root entry {
+        try {
+            df = pd.read_csv("data/users.csv");
+            for (index, row) in df.iterrows() {
+                # Simple check to avoid duplicates for now, can be improved
+                already_exists = False;
+                for u in [here-->](`?User) {
+                    if u.username == row['username'] {
+                        already_exists = True;
+                        break;
+                    }
+                }
+                if not already_exists {
+                    here ++> User(username=row['username']);
+                    print(f"Loaded user: {row['username']}");
+                }
+            }
+        } except Exception as e {
+            print(f"Error loading users: {e}");
+        }
+    }
+
+    can load_projects with `root entry {
+        try {
+            df = pd.read_csv("data/projects.csv");
+            for (index, row) in df.iterrows() {
+                repo_url = row['repo_url'];  # e.g., "jac-lang/jac"
+                parts = repo_url.split("/");
+
+                if len(parts) == 2 {
+                    owner = parts[0];
+                    name = parts[1];
+                    already_exists = False;
+                    for p in [here-->](`?Project) {
+                        if p.name == name and p.owner == owner {
+                            already_exists = True;
+                            break;
+                        }
+                    }
+                    if not already_exists {
+                        here ++> Project(name=name, owner=owner, repo_url=repo_url);
+                        print(f"Loaded project: {repo_url}");
+                    }
+                }
+            }
+        } except Exception as e {
+            print(f"Error loading projects: {e}");
+        }
+    }
+}
+
+walker UpdateStats {
+    has github_token: str = os.environ.get("GITHUB_TOKEN", "");
+
+    can update with `root entry {
+        try {
+            load_dotenv("../.env");
+            self.github_token = os.environ.get("GITHUB_TOKEN", "");
+            visit [-->](`?Project);
+            visit [-->](`?User);
+        } except Exception as e {
+            print(f"Error in UpdateStats root: {e}");
+        }
+    }
+
+    can process_project with Project entry {
+        print(f"Updating stats for {here.repo_url}...");
+        try {
+            g = Github(self.github_token) if self.github_token else Github();
+            repo = g.get_repo(here.repo_url);
+
+            here.stars = repo.stargazers_count;
+
+            # Count pushes in the last week
+            last_week = datetime.now() - timedelta(days=7);
+            commits = repo.get_commits(since=last_week);
+            here.weekly_pushes = commits.totalCount;
+
+            here.last_push = str(repo.pushed_at);
+            print(
+                f"Updated {here.repo_url}: {here.stars} stars, {here.weekly_pushes} pushes"
+            );
+        } except Exception as e {
+            print(f"Failed to update {here.repo_url}: {e}");
+        }
+    }
+
+    can process_user with User entry {
+        print(f"Updating stats for user {here.username}...");
+        try {
+            g = Github(self.github_token) if self.github_token else Github();
+            user = g.get_user(here.username);
+
+            here.avatar_url = user.avatar_url;
+
+            # Count pushes in last week
+            last_week = datetime.now(timezone.utc) - timedelta(days=7);
+            events = user.get_events();
+
+            push_count = 0;
+            latest_push_time = "";
+
+            for event in events {
+                if event.created_at < last_week {
+                    break;
+                }
+                if event.type == "PushEvent" {
+                    # Count distinct commits in the push
+                    payload = event.payload;
+                    # PyGithub payload is often a dict or object.
+                    # Accessing size safely.
+                    size = 1;
+                    try {
+                        size = payload.size
+                        if hasattr(payload, 'size')
+                        else payload['size'];
+                    } except Exception {
+                        size = 1;
+                    }
+                    push_count += int(size);
+                    if latest_push_time == "" {
+                        latest_push_time = str(event.created_at);
+                    }
+                }
+            }
+
+            here.weekly_pushes = push_count;
+            here.last_push = latest_push_time;
+
+            print(f"Updated user {here.username}: {here.weekly_pushes} pushes");
+        } except Exception as e {
+            print(f"Failed to update user {here.username}: {e}");
+        }
+    }
+}
+
+def:pub load_data() {
+    root spawn LoadData();
+}
+
+def:pub update_stats() {
+    root spawn UpdateStats();
+}
+
+def:pub get_users() -> list {
+    users = [];
+    for u in [root-->](`?User) {
+        users.append(
+            {
+                "username": u.username,
+                "weekly_pushes": u.weekly_pushes,
+                "last_push": u.last_push,
+                "avatar_url": u.avatar_url
+            }
+        );
+    }
+    # Bubble sort for safety / Jac syntax compatibility
+    n = len(users);
+    for i in range(n) {
+        for j in range(0, n - i - 1) {
+            if users[j]["weekly_pushes"] < users[j + 1]["weekly_pushes"] {
+                temp = users[j];
+                users[j] = users[j + 1];
+                users[j + 1] = temp;
+            }
+        }
+    }
+    return users;
+}
+
+def:pub get_projects() -> list {
+    projects = [];
+    for p in [root-->](`?Project) {
+        projects.append(
+            {
+                "name": p.name,
+                "owner": p.owner,
+                "stars": p.stars,
+                "weekly_pushes": p.weekly_pushes,
+                "last_push": p.last_push,
+                "repo_url": p.repo_url
+            }
+        );
+    }
+    n = len(projects);
+    for i in range(n) {
+        for j in range(0, n - i - 1) {
+            if projects[j]["weekly_pushes"] < projects[j + 1]["weekly_pushes"] {
+                temp = projects[j];
+                projects[j] = projects[j + 1];
+                projects[j + 1] = temp;
+            }
+        }
+    }
+    return projects;
+}
+
+# Frontend
+cl {
+    import from react { useEffect, useState }
+    import from .components.Button { Button }
+
+    def:pub app() -> any {
+        has projects: list = [];
+        has users: list = [];
+        has loading: bool = False;
+        has error: str = "";
+
+        async def fetchData() -> None {
+            loading = True;
+            try {
+                await load_data();
+                await update_stats();
+                users = await get_users();
+                projects = await get_projects();
+            } except Exception as e {
+                error = str(e);
+            }
+            loading = False;
+        }
+
+        useEffect(lambda -> None { fetchData();}, []);
+
+        return
+            <div
+                style={{
+                    fontFamily: "Inter, sans-serif",
+                    backgroundColor: "#f3f4f6",
+                    minHeight: "100vh",
+                    padding: "2rem"
+                }}
+            >
+                <header style={{textAlign: "center", marginBottom: "3rem"}}>
+                    <h1
+                        style={{
+                            fontSize: "2.5rem",
+                            fontWeight: "800",
+                            color: "#1f2937",
+                            marginBottom: "0.5rem"
+                        }}
+                    >
+                        GitHub Tracker
+                    </h1>
+                    <p style={{color: "#6b7280", fontSize: "1.1rem"}}>
+                        Live activity tracking for Users and Projects
+                    </p>
+                </header>
+                <div
+                    style={{
+                        display: "flex",
+                        justifyContent: "center",
+                        gap: "1rem",
+                        marginBottom: "2rem"
+                    }}
+                >
+                    <Button
+                        label={("Refreshing..." if loading else "Refresh Data")}
+                        onClick={fetchData}
+                        variant="primary"
+                        disabled={loading}
+                    />
+                </div>
+                {<div
+                    style={{color: "red", textAlign: "center", marginBottom: "1rem"}}
+                >
+                    {error}
+                </div>
+                if error
+                else None}
+                <div
+                    style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: "2rem",
+                        maxWidth: "1200px",
+                        margin: "0 auto"
+                    }}
+                >
+                    <div
+                        style={{
+                            backgroundColor: "#ffffff",
+                            borderRadius: "1rem",
+                            padding: "1.5rem",
+                            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)"
+                        }}
+                    >
+                        <h2
+                            style={{
+                                fontSize: "1.5rem",
+                                fontWeight: "700",
+                                marginBottom: "1.5rem",
+                                borderBottom: "2px solid #e5e7eb",
+                                paddingBottom: "1rem",
+                                color: "#4b5563"
+                            }}
+                        >
+                            Top Users (Weekly Pushes)
+                        </h2>
+                        <div
+                            className="scroll-container"
+                            style={{
+                                height: "500px",
+                                overflow: "hidden",
+                                position: "relative"
+                            }}
+                        >
+                            <div
+                                style={{
+                                    animation: "scrollUp 20s linear infinite",
+                                    ":hover": {animationPlayState: "paused"}
+                                }}
+                            >
+                                {[
+                                    <div
+                                        key={u["username"]}
+                                        style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            padding: "1rem",
+                                            borderBottom: "1px solid #f3f4f6",
+                                            gap: "1rem"
+                                        }}
+                                    >
+                                        <img
+                                            src={u["avatar_url"]}
+                                            alt=""
+                                            style={{
+                                                width: "3rem",
+                                                height: "3rem",
+                                                borderRadius: "50%"
+                                            }}
+                                        />
+                                        <div style={{flex: 1}}>
+                                            <div
+                                                style={{
+                                                    fontWeight: "600",
+                                                    fontSize: "1.1rem",
+                                                    color: "#111827"
+                                                }}
+                                            >
+                                                {u["username"]}
+                                            </div>
+                                            <div
+                                                style={{
+                                                    fontSize: "0.85rem",
+                                                    color: "#9ca3af"
+                                                }}
+                                            >
+                                                Last push: {u["last_push"]
+                                                if u["last_push"]
+                                                else "N/A"}
+                                            </div>
+                                        </div>
+                                        <div style={{textAlign: "right"}}>
+                                            <div
+                                                style={{
+                                                    fontSize: "1.25rem",
+                                                    fontWeight: "700",
+                                                    color: "#10b981"
+                                                }}
+                                            >
+                                                📦 {u["weekly_pushes"]}
+                                            </div>
+                                        </div>
+                                    </div> for u in users
+                                ]}
+                            </div>
+                        </div>
+                    </div>
+                    <div
+                        style={{
+                            backgroundColor: "#ffffff",
+                            borderRadius: "1rem",
+                            padding: "1.5rem",
+                            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)"
+                        }}
+                    >
+                        <h2
+                            style={{
+                                fontSize: "1.5rem",
+                                fontWeight: "700",
+                                marginBottom: "1.5rem",
+                                borderBottom: "2px solid #e5e7eb",
+                                paddingBottom: "1rem",
+                                color: "#4b5563"
+                            }}
+                        >
+                            Top Projects (Weekly Pushes)
+                        </h2>
+                        <div
+                            className="scroll-container"
+                            style={{
+                                height: "500px",
+                                overflow: "hidden",
+                                position: "relative"
+                            }}
+                        >
+                            <div
+                                style={{
+                                    animation: "scrollUp 20s linear infinite",
+                                    ":hover": {animationPlayState: "paused"}
+                                }}
+                            >
+                                {[
+                                    <div
+                                        key={p["repo_url"]}
+                                        style={{
+                                            padding: "1rem",
+                                            borderBottom: "1px solid #f3f4f6"
+                                        }}
+                                    >
+                                        <div
+                                            style={{
+                                                display: "flex",
+                                                justifyContent: "space-between",
+                                                marginBottom: "0.5rem"
+                                            }}
+                                        >
+                                            <a
+                                                href={"https://github.com/" + p[
+                                                    "repo_url"
+                                                ]}
+                                                target="_blank"
+                                                style={{
+                                                    fontWeight: "600",
+                                                    fontSize: "1.1rem",
+                                                    color: "#2563eb",
+                                                    textDecoration: "none"
+                                                }}
+                                            >
+                                                {p["owner"]}/{p["name"]}
+                                            </a>
+                                            <span
+                                                style={{
+                                                    fontSize: "0.9rem",
+                                                    color: "#6b7280"
+                                                }}
+                                            >
+                                                ⭐ {p["stars"]}
+                                            </span>
+                                        </div>
+                                        <div
+                                            style={{
+                                                display: "flex",
+                                                justifyContent: "space-between",
+                                                alignItems: "center"
+                                            }}
+                                        >
+                                            <span
+                                                style={{
+                                                    fontSize: "0.85rem",
+                                                    color: "#9ca3af"
+                                                }}
+                                            >
+                                                Last: {p["last_push"]
+                                                if p["last_push"]
+                                                else "N/A"}
+                                            </span>
+                                            <div
+                                                style={{
+                                                    fontSize: "1.25rem",
+                                                    fontWeight: "700",
+                                                    color: "#10b981"
+                                                }}
+                                            >
+                                                📦 {p["weekly_pushes"]}
+                                            </div>
+                                        </div>
+                                    </div> for p in projects
+                                ]}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>;
+    }
+}
