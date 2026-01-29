@@ -245,7 +245,11 @@ cl {
             loading = False;
         }
 
-        useEffect(lambda -> None { fetchData();}, []);
+        useEffect(
+            lambda -> None { fetchData();
+            setInterval(fetchData, 60000);},
+            []
+        );
 
         return
             <div
@@ -279,12 +283,6 @@ cl {
                         marginBottom: "2rem"
                     }}
                 >
-                    <Button
-                        label={("Refreshing..." if loading else "Refresh Data")}
-                        onClick={fetchData}
-                        variant="primary"
-                        disabled={loading}
-                    />
                 </div>
                 {<div
                     style={{color: "red", textAlign: "center", marginBottom: "1rem"}}
