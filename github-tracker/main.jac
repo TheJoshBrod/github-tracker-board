@@ -27,8 +27,18 @@ walker LoadData {
     can load_users with `root entry {
         try {
             df = pd.read_csv("data/users.csv");
+            valid_usernames = set(df['username'].tolist());
+
+            # Delete users not in CSV
+            for u in [here-->](`?User) {
+                if u.username not in valid_usernames {
+                    print(f"Deleting user: {u.username}");
+                    del u;
+                }
+            }
+
+            # Add new users
             for (index, row) in df.iterrows() {
-                # Simple check to avoid duplicates for now, can be improved
                 already_exists = False;
                 for u in [here-->](`?User) {
                     if u.username == row['username'] {
@@ -49,10 +59,24 @@ walker LoadData {
     can load_projects with `root entry {
         try {
             df = pd.read_csv("data/projects.csv");
+            valid_repos = set(df['repo_url'].tolist());
+
+            # Delete projects not in CSV
+            for p in [here-->](`?Project) {
+                if p.repo_url not in valid_repos {
+                    print(f"Deleting project: {p.repo_url}");
+                    del p;
+                }
+            }
+
+            # Add new projects
             for (index, row) in df.iterrows() {
                 repo_url = row['repo_url'];  # e.g., "jac-lang/jac"
-                parts = repo_url.split("/");
+                if repo_url not in valid_repos {
+                    continue;
+                }  # Should match but safety check
 
+                parts = repo_url.split("/");
                 if len(parts) == 2 {
                     owner = parts[0];
                     name = parts[1];
@@ -132,8 +156,11 @@ walker UpdateStats {
                 }
                 if event.type == "PushEvent" {
                     # Count distinct commits in the push
+                    # Count distinct commits in the push
                     payload = event.payload;
                     # PyGithub payload is often a dict or object.
+                    # PyGithub payload is often a dict or object.
+                    # Accessing size safely.
                     # Accessing size safely.
                     size = 1;
                     try {
@@ -221,6 +248,7 @@ def:pub get_users() -> list {
         );
     }
     # Bubble sort for safety / Jac syntax compatibility
+    # Bubble sort for safety / Jac syntax compatibility
     n = len(users);
     for i in range(n) {
         for j in range(0, n - i - 1) {
@@ -262,6 +290,7 @@ def:pub get_projects() -> list {
     return projects;
 }
 
+# Frontend
 # Frontend
 cl {
     import from react { useEffect, useState }
